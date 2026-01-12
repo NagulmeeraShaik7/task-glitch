@@ -153,6 +153,7 @@ export function useTasks(): UseTasksState {
   const deleteTask = useCallback((id: string) => {
     setTasks(prev => {
       const target = prev.find(t => t.id === id) || null;
+      if (target) console.debug('[useTasks] deleteTask - lastDeleted set to', target.id);
       setLastDeleted(target);
       return prev.filter(t => t.id !== id);
     });
@@ -160,9 +161,15 @@ export function useTasks(): UseTasksState {
 
   const undoDelete = useCallback(() => {
     if (!lastDeleted) return;
+    console.debug('[useTasks] undoDelete - restoring', lastDeleted.id);
     setTasks(prev => [...prev, lastDeleted]);
     setLastDeleted(null);
   }, [lastDeleted]);
+
+  const clearLastDeleted = useCallback(() => {
+    console.debug('[useTasks] clearLastDeleted');
+    setLastDeleted(null);
+  }, []);
 
   return {
     tasks,
@@ -175,5 +182,6 @@ export function useTasks(): UseTasksState {
     updateTask,
     deleteTask,
     undoDelete,
+    clearLastDeleted,
   };
 }

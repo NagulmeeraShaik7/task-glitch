@@ -19,12 +19,13 @@ import {
 } from '@/utils/logic';
 
 function AppContent() {
-  const { loading, error, metrics, derivedSorted, addTask, updateTask, deleteTask, undoDelete, lastDeleted } = useTasksContext();
-  const handleCloseUndo = () => {};
+  const { loading, error, metrics, derivedSorted, addTask, updateTask, deleteTask, undoDelete, lastDeleted, clearLastDeleted } = useTasksContext();
   const [q, setQ] = useState('');
   const [fStatus, setFStatus] = useState<string>('All');
   const [fPriority, setFPriority] = useState<string>('All');
   const { user } = useUser();
+
+  // Activity log state & helper (declare before callbacks that reference it)
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const createActivity = useCallback((type: ActivityItem['type'], summary: string): ActivityItem => ({
     id: (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`),
@@ -32,6 +33,12 @@ function AppContent() {
     type,
     summary,
   }), []);
+
+  const handleCloseUndo = useCallback(() => {
+    // When snackbar closes (auto or manual), clear the last deleted item so undo can't recover old tasks
+    clearLastDeleted();
+    setActivity(prev => [createActivity('delete', 'Dismissed delete'), ...prev].slice(0, 50));
+  }, [clearLastDeleted, createActivity]);
 
   const filtered = useMemo(() => {
     return derivedSorted.filter(t => {
