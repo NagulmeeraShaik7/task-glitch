@@ -23,7 +23,7 @@ interface UseTasksState {
   metrics: Metrics;
   lastDeleted: Task | null;
   lastDeletedToken: string | null;
-  addTask: (task: Omit<Task, 'id'> & { id?: string }) => void;
+  addTask: (task: Omit<Task, 'id' | 'createdAt'> & { id?: string }) => void;
   updateTask: (id: string, patch: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   undoDelete: (token?: string) => void;
@@ -137,13 +137,13 @@ export function useTasks(): UseTasksState {
     };
   }, [tasks]);
 
-  const addTask = useCallback((task: Omit<Task, 'id'> & { id?: string }) => {
+  const addTask = useCallback((task: Omit<Task, 'id' | 'createdAt'> & { id?: string }) => {
     setTasks(prev => {
       const id = task.id ?? crypto.randomUUID();
       const timeTaken = task.timeTaken <= 0 ? 1 : task.timeTaken;
       const createdAt = new Date().toISOString();
       const completedAt = task.status === 'Done' ? createdAt : undefined;
-      return [...prev, { ...task, id, timeTaken, createdAt, completedAt }];
+      return [...prev, { ...task as Omit<Task, 'id'>, id, timeTaken, createdAt, completedAt }];
     });
   }, []);
 
