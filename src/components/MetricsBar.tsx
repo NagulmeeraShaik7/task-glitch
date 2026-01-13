@@ -33,8 +33,8 @@ export default function MetricsBar({ metricsOverride }: { metricsOverride?: Metr
           <Stat label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} hint="Sum of revenue for Done tasks" />
           <Stat label="Time Efficiency" value={`${timeEfficiencyPct.toFixed(0)}%`} hint="(Done / All) * 100" />
           <Stat label="Revenue / Hour" value={`$${(Number.isFinite(revenuePerHour) ? revenuePerHour : 0).toFixed(1)}`} hint="Total revenue divided by total time" />
-          <Stat label="Average ROI" value={`${averageROI.toFixed(1)}`} hint="Mean of valid ROI values" />
-          <Stat label="Grade" value={`${performanceGrade}`} hint={`Based on Avg ROI (${averageROI.toFixed(1)}) • Total time ${totalTimeTaken}h`} />
+          <Stat label="Average ROI" value={`${averageROI.toFixed(2)}`} hint="Mean of valid ROI values (2 decimals)" />
+          <Stat label="Grade" value={`${performanceGrade}`} hint={`Based on Avg ROI (${averageROI.toFixed(2)}) • Total time ${totalTimeTaken}h`} />
         </Box>
       </CardContent>
     </Card>
