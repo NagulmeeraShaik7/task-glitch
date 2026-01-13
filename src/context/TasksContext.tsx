@@ -9,11 +9,12 @@ interface TasksContextValue {
   derivedSorted: DerivedTask[];
   metrics: Metrics;
   lastDeleted: Task | null;
+  lastDeletedToken: string | null;
   addTask: (task: Omit<Task, 'id'> & { id?: string }) => void;
   updateTask: (id: string, patch: Partial<Task>) => void;
   deleteTask: (id: string) => void;
-  undoDelete: () => void;
-  clearLastDeleted: () => void;
+  undoDelete: (token?: string) => void;
+  clearLastDeleted: (token?: string) => void;
 }
 
 const TasksContext = createContext<TasksContextValue | undefined>(undefined);

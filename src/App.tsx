@@ -19,7 +19,7 @@ import {
 } from '@/utils/logic';
 
 function AppContent() {
-  const { loading, error, metrics, derivedSorted, addTask, updateTask, deleteTask, undoDelete, lastDeleted, clearLastDeleted } = useTasksContext();
+  const { loading, error, metrics, derivedSorted, addTask, updateTask, deleteTask, undoDelete, lastDeleted, clearLastDeleted, lastDeletedToken } = useTasksContext();
   const [q, setQ] = useState('');
   const [fStatus, setFStatus] = useState<string>('All');
   const [fPriority, setFPriority] = useState<string>('All');
@@ -34,9 +34,9 @@ function AppContent() {
     summary,
   }), []);
 
-  const handleCloseUndo = useCallback(() => {
+  const handleCloseUndo = useCallback((token?: string) => {
     // When snackbar closes (auto or manual), clear the last deleted item so undo can't recover old tasks
-    clearLastDeleted();
+    clearLastDeleted(token);
     setActivity(prev => [createActivity('delete', 'Dismissed delete'), ...prev].slice(0, 50));
   }, [clearLastDeleted, createActivity]);
 
@@ -61,8 +61,8 @@ function AppContent() {
     deleteTask(id);
     setActivity(prev => [createActivity('delete', `Deleted task ${id}`), ...prev].slice(0, 50));
   }, [deleteTask, createActivity]);
-  const handleUndo = useCallback(() => {
-    undoDelete();
+  const handleUndo = useCallback((token?: string) => {
+    undoDelete(token);
     setActivity(prev => [createActivity('undo', 'Undo delete'), ...prev].slice(0, 50));
   }, [undoDelete, createActivity]);
   return (
@@ -133,7 +133,7 @@ function AppContent() {
           {!loading && !error && <ChartsDashboard tasks={filtered} />}
           {!loading && !error && <AnalyticsDashboard tasks={filtered} />}
           {!loading && !error && <ActivityLog items={activity} />}
-          <UndoSnackbar open={!!lastDeleted} onClose={handleCloseUndo} onUndo={handleUndo} />
+          <UndoSnackbar open={!!lastDeleted} onClose={() => handleCloseUndo(lastDeletedToken ?? undefined)} onUndo={() => handleUndo(lastDeletedToken ?? undefined)} />
          </Stack>
       </Container>
     </Box>

@@ -11,8 +11,9 @@ import {
 } from '@/utils/logic';
 import { generateSalesTasks } from '@/utils/seed';
 
-/* 🔐 Survives StrictMode remounts */
-let hasFetchedOnce = false;
+/* 🔐 Survives StrictMode remounts and HMR */
+// Use a cached Promise to make fetch idempotent across mounts and HMR
+let tasksFetchPromise: Promise<any[]> | null = null;
 
 interface UseTasksState {
   tasks: Task[];
@@ -21,11 +22,12 @@ interface UseTasksState {
   derivedSorted: DerivedTask[];
   metrics: Metrics;
   lastDeleted: Task | null;
+  lastDeletedToken: string | null;
   addTask: (task: Omit<Task, 'id'> & { id?: string }) => void;
   updateTask: (id: string, patch: Partial<Task>) => void;
   deleteTask: (id: string) => void;
-  undoDelete: () => void;
-  clearLastDeleted: () => void;
+  undoDelete: (token?: string) => void;
+  clearLastDeleted: (token?: string) => void;
 }
 
 const INITIAL_METRICS: Metrics = {
@@ -42,6 +44,8 @@ export function useTasks(): UseTasksState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastDeleted, setLastDeleted] = useState<Task | null>(null);
+  // Token identifies the current deletion window to avoid races when multiple deletions happen quickly
+  const [lastDeletedToken, setLastDeletedToken] = useState<string | null>(null);
 
   function normalizeTasks(input: any[]): Task[] {
     const now = Date.now();
@@ -73,32 +77,38 @@ export function useTasks(): UseTasksState {
      ✅ FIXED SINGLE FETCH
      ========================= */
   useEffect(() => {
-    if (hasFetchedOnce) {
-      setLoading(false);
-      return;
+    // Use a cached Promise so even if this effect runs multiple times
+    // (StrictMode remount, HMR, etc.), only one real network request happens.
+    if (!tasksFetchPromise) {
+      tasksFetchPromise = (async () => {
+        console.debug('[useTasks] fetch tasks – starting network request');
+        try {
+          const res = await fetch('/tasks.json');
+          if (!res.ok) throw new Error(`Failed to load tasks.json (${res.status})`);
+          const data = (await res.json()) as any[];
+          const normalized = normalizeTasks(data);
+          return normalized.length > 0 ? normalized : generateSalesTasks(50);
+        } catch (e) {
+          console.error('[useTasks] fetch tasks failed', e);
+          // Reset the promise so future tries can attempt again
+          tasksFetchPromise = null;
+          throw e;
+        }
+      })();
     }
-    hasFetchedOnce = true;
 
     let isMounted = true;
-
-    async function load() {
-      console.debug('[useTasks] load tasks – SINGLE CALL');
+    (async () => {
       try {
-        const res = await fetch('/tasks.json');
-        if (!res.ok) throw new Error(`Failed to load tasks.json (${res.status})`);
-        const data = (await res.json()) as any[];
-        const normalized = normalizeTasks(data);
-        const finalData =
-          normalized.length > 0 ? normalized : generateSalesTasks(50);
+        const finalData = await tasksFetchPromise;
         if (isMounted) setTasks(finalData);
       } catch (e: any) {
         if (isMounted) setError(e?.message ?? 'Failed to load tasks');
       } finally {
         if (isMounted) setLoading(false);
       }
-    }
+    })();
 
-    load();
     return () => {
       isMounted = false;
     };
@@ -155,22 +165,37 @@ export function useTasks(): UseTasksState {
     setTasks(prev => {
       const target = prev.find(t => t.id === id) || null;
       if (target) console.debug('[useTasks] deleteTask - lastDeleted set to', target.id);
+      const token = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       setLastDeleted(target);
+      setLastDeletedToken(token);
       return prev.filter(t => t.id !== id);
     });
   }, []);
 
-  const undoDelete = useCallback(() => {
+  const undoDelete = useCallback((token?: string) => {
+    // Only restore if token matches current deletion window (prevents stale restores)
     if (!lastDeleted) return;
+    if (token && token !== lastDeletedToken) {
+      console.debug('[useTasks] undoDelete - token mismatch, abort restore', token, lastDeletedToken);
+      return;
+    }
     console.debug('[useTasks] undoDelete - restoring', lastDeleted.id);
     setTasks(prev => [...prev, lastDeleted]);
     setLastDeleted(null);
-  }, [lastDeleted]);
+    setLastDeletedToken(null);
+  }, [lastDeleted, lastDeletedToken]);
 
-  const clearLastDeleted = useCallback(() => {
+  const clearLastDeleted = useCallback((token?: string) => {
+    // Only clear if token matches or no token supplied. This prevents earlier
+    // close handlers from clearing a more recent deletion (race safety).
+    if (token && token !== lastDeletedToken) {
+      console.debug('[useTasks] clearLastDeleted - token mismatch, ignoring', token, lastDeletedToken);
+      return;
+    }
     console.debug('[useTasks] clearLastDeleted');
     setLastDeleted(null);
-  }, []);
+    setLastDeletedToken(null);
+  }, [lastDeletedToken]);
 
   return {
     tasks,
@@ -179,6 +204,7 @@ export function useTasks(): UseTasksState {
     derivedSorted,
     metrics,
     lastDeleted,
+    lastDeletedToken,
     addTask,
     updateTask,
     deleteTask,

@@ -87,12 +87,12 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
                       <Tooltip title="Edit">
-                        <IconButton onClick={(e) => { e.stopPropagation(); setDetails(null); handleEditClick(t); }} size="small">
+                        <IconButton aria-label={`edit-${t.id}`} onClick={(e) => { e.stopPropagation(); setDetails(null); handleEditClick(t); }} size="small">
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Delete">
-                        <IconButton onClick={(e) => { e.stopPropagation(); setDetails(null); onDelete(t.id); }} size="small" color="error">
+                        <IconButton aria-label={`delete-${t.id}`} onClick={(e) => { e.stopPropagation(); setDetails(null); onDelete(t.id); }} size="small" color="error">
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
